@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tp Secure Chat ❤️</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #eef2f3; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 400px; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { color: #0084ff; text-align: center; }
+        #user-photo { width: 50px; height: 50px; border-radius: 50%; display: block; margin: 0 auto 10px auto; border: 2px solid #0084ff; }
+        #chat-box { height: 300px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 10px; background-color: #fafafa; }
+        input { width: 70%; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+        button { background: #0084ff; color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tp Secure ❤️</h2>
+    <div id="login-section">
+        <button onclick="signIn()">Google తో లాగిన్ అవ్వండి</button>
+    </div>
+    <div id="chat-ui" style="display:none;">
+        <img id="user-photo" src="" alt="Profile">
+        <div id="chat-box"></div>
+        <input type="text" id="msg" placeholder="మెసేజ్ రాయండి...">
+        <button onclick="sendMsg()">Send</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBc3DCFXyDba9AVj3zSsagL-0WZHdojisU",
+        authDomain: "tpapp-4f8d4.firebaseapp.com",
+        databaseURL: "https://tpapp-4f8d4-default-rtdb.firebaseio.com",
+        projectId: "tpapp-4f8d4",
+        storageBucket: "tpapp-4f8d4.firebasestorage.app",
+        messagingSenderId: "777097519018",
+        appId: "1:777097519018:web:30e65fdd1596ab27ab95d3",
+        measurementId: "G-PBSX2EV6BS"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const secretKey = "my-super-secret-key"; 
+
+    function signIn() {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        firebase.auth().signInWithPopup(provider);
+    }
+
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('chat-ui').style.display = 'block';
+            
+            // ప్రొఫైల్ ఫోటో లోడ్ చేయడం
+            const photo = document.getElementById('user-photo');
+            photo.src = user.photoURL;
+
+            db.collection("messages").orderBy("timestamp").onSnapshot((snapshot) => {
+                const chatBox = document.getElementById("chat-box");
+                chatBox.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const name = data.userName || "Unknown";
+                    try {
+                        const bytes = CryptoJS.AES.decrypt(data.text, secretKey);
+                        const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+                        chatBox.innerHTML += `<p><b>${name}:</b> ${decryptedText}</p>`;
+                    } catch(e) {
+                        chatBox.innerHTML += `<p><b>${name}:</b> [Encrypted Content]</p>`;
+                    }
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        } else {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('chat-ui').style.display = 'none';
+        }
+    });
+
+    function sendMsg() {
+        const msg = document.getElementById("msg").value;
+        const user = firebase.auth().currentUser;
+        if(msg && user) {
+            const encryptedText = CryptoJS.AES.encrypt(msg, secretKey).toString();
+            db.collection("messages").add({
+                text: encryptedText,
+                userName: user.displayName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            document.getElementById("msg").value = "";
+        }
+    }
+</script>
+</body>
+  </html>
